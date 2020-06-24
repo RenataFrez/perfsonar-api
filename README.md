@@ -10,8 +10,6 @@ Perfsonar Maddash (Monitoring and Debugging Dashboard) aims to collect and prese
 
 You can use this script to query the status of a Dashboard on Perfsonar, to query specific tests, or even to check the status of a grid. Example:
 
-.. code-block :: RST
-
     $ ./maddash-api_wrapper.py -s dashboard.ampath.net -L | python -m json.tool
     {
         "data": [
