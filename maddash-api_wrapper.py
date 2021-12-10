@@ -59,15 +59,15 @@ def list_cells(server_name, grid_uri, mapping, option):
                         continue
                     uri_l = str(cel['uri']).split('/')
                     #print "http://%s/maddash/grids/%s/%s/%s/%s" % (server_name, uri_l[-4], uri_l[-3], uri_l[-2], uri_l[-1])
-
+                    
                     if option == "throughput" and uri_l[-1] == "Throughput":
-                        cells = get_values(server_name, uri_l, cel, mapping)
-                    elif option == "loss" and uri_l[-1] == "Loss":
-                        cells = get_values(server_name, uri_l, cel, mapping)
-                    elif option == "latency" and uri_l[-1] == "Packet+Loss":
-                        cells = get_values (server_name, uri_l, cel, mapping)
+                        cells.append(get_values(server_name, uri_l, cel, mapping))
+                    elif option == "loss" and uri_l[-1] == "Packet+Loss":
+                        cells.append(get_values(server_name, uri_l, cel, mapping))
+                    elif option == "latency" and uri_l[-1] == "Loss":
+                        cells.append(get_values(server_name, uri_l, cel, mapping))
                     elif option == "all":
-                        cells = get_values (server_name, uri_l, cel, mapping)
+                        cells.append(get_values(server_name, uri_l, cel, mapping))
                     
     if cells:
         return cells
@@ -92,7 +92,7 @@ def get_values(server_name, uri_l, cel, mapping):
             last_value = None
         break
     SRC_DST = data['rowName'] + '->' + data['colName']
-    if uri_l[-1] != "Packet+Loss":
+    if "Ping Loss" not in data['gridName']:
         cells.append({'{#NAME}': data['gridName'],
                         '{#SRC_DST}' : SRC_DST,
                         '{#STATUS}': data['statusShortName'],
@@ -125,6 +125,7 @@ def get_values(server_name, uri_l, cel, mapping):
                             '{#URI}' : str(uri_esmond),
                             '{#TYPE}' : "Latency",
                             '{#VALUE}': value})   
+
     return cells 
 
 def get_check_status(server_name, check_uri):
@@ -225,6 +226,9 @@ parser = argparse.ArgumentParser(prog='maddash-api-wrapper',
                                 description='Wrapper for MaDDash API')
 parser.add_argument("-s", "--server-name", required=True,
                         help="ServerName for the MaDDash host")
+## Only used to divide the discovery rules on Zabbix.
+parser.add_argument("-T", "--check-values-type",
+                        help="ACTION: Inform the test type")
 actions = parser.add_mutually_exclusive_group(required=True)
 actions.add_argument("-L", "--list-grids", action="store_true",
                         help="ACTION: List all grids")
@@ -264,9 +268,12 @@ elif args.values_all_grids:
             name = grid['{#NAME}']
             uri = grid['{#URI}']
             #print name,"\n","="*len(name)
+            #tests_info = []
+            #tests_info.append(list_cells(args.server_name, uri, mapping, option))
             tests_info = list_cells(args.server_name, uri, mapping, option)
             if tests_info:
-                cells += tests_info
+                for cell in tests_info:
+                    cells += cell
             #for cell in cells:
             #    print cell
         print '{"data":',json.dumps(cells),'}'
@@ -276,7 +283,12 @@ elif args.check_status_uri:
     status = get_check_status(args.server_name, args.check_status_uri)
     print status
 elif args.check_values_uri:
-    value = get_check_values(args.server_name, args.check_values_uri)
-    print value
+    option = args.check_values_type
+    possible_options = ['all', 'throughput', 'loss', 'latency']
+    if option in possible_options:
+        value = get_check_values(args.server_name, args.check_values_uri)
+        print value
+    else:
+        raise ValueError("Option not valid. Please use 'all', 'throughput', 'loss', or 'latency'")
 else:
     parser.print_help()
